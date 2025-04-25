@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wikipedia API Demo</title>
+    <title>Wikipedia API Demo - Multi-Language Filter</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -49,17 +49,33 @@
             overflow-x: auto;
             font-size: 14px;
         }
+        #language-count {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        #min-languages {
+            width: 60px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Wikipedia API Demo</h1>
-    <p>This simple page demonstrates how to fetch and display a random Wikipedia article.</p>
+    <p>This page demonstrates how to fetch Wikipedia articles available in multiple languages.</p>
     
-    <button id="load-btn">Load Random Article</button>
+    <div class="controls">
+        <label for="min-languages">Minimum languages: </label>
+        <input type="number" id="min-languages" value="20" min="1" max="300">
+        <button id="load-btn">Load Article</button>
+    </div>
+    
     <p id="status" class="status">Click the button to fetch an article...</p>
     
     <div id="article-container">
         <h2 id="article-title">Article will appear here</h2>
+        <p>Available in <span id="language-count">0</span> languages</p>
         <div id="article-content">Loading...</div>
     </div>
     
@@ -73,39 +89,74 @@
         const articleTitle = document.getElementById('article-title');
         const articleContent = document.getElementById('article-content');
         const apiResponse = document.getElementById('api-response');
+        const languageCount = document.getElementById('language-count');
+        const minLanguagesInput = document.getElementById('min-languages');
         
-        // Function to fetch a random article
-        async function getRandomArticle() {
+        // Function to fetch a random article with at least the specified number of language translations
+        async function getMultiLanguageArticle() {
             try {
-                statusText.textContent = "Fetching random article...";
+                const minLanguages = parseInt(minLanguagesInput.value) || 20;
+                statusText.textContent = `Searching for an article available in at least ${minLanguages} languages...`;
                 
-                // Step 1: Get a random article ID
-                const randomResponse = await fetch(
-                    'https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*'
-                );
+                let foundSuitableArticle = false;
+                let attempts = 0;
+                const maxAttempts = 20; // Limit the number of attempts to avoid infinite loops
                 
-                const randomData = await randomResponse.json();
-                apiResponse.textContent = JSON.stringify(randomData, null, 2);
+                while (!foundSuitableArticle && attempts < maxAttempts) {
+                    attempts++;
+                    statusText.textContent = `Attempt ${attempts}/${maxAttempts}: Fetching random article...`;
+                    
+                    // Step 1: Get a random article ID
+                    const randomResponse = await fetch(
+                        'https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*'
+                    );
+                    
+                    const randomData = await randomResponse.json();
+                    const pageId = randomData.query.random[0].id;
+                    const title = randomData.query.random[0].title;
+                    
+                    statusText.textContent = `Checking language count for "${title}"...`;
+                    
+                    // Step 2: Check how many language links this article has
+                    const langlinksResponse = await fetch(
+                        `https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&lllimit=500&pageids=${pageId}&format=json&origin=*`
+                    );
+                    
+                    const langlinksData = await langlinksResponse.json();
+                    const langlinks = langlinksData.query.pages[pageId].langlinks || [];
+                    const langCount = langlinks.length;
+                    
+                    if (langCount >= minLanguages) {
+                        foundSuitableArticle = true;
+                        statusText.textContent = `Found suitable article: "${title}" with ${langCount} translations!`;
+                        
+                        // Step 3: Get the article content
+                        const contentResponse = await fetch(
+                            `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`
+                        );
+                        
+                        const contentData = await contentResponse.json();
+                        apiResponse.textContent = JSON.stringify({
+                            article: contentData,
+                            langlinks: langlinksData
+                        }, null, 2);
+                        
+                        // Display the article extract
+                        const extract = contentData.query.pages[pageId].extract;
+                        articleTitle.textContent = title;
+                        articleContent.textContent = extract;
+                        languageCount.textContent = langCount;
+                    } else {
+                        statusText.textContent = `"${title}" only has ${langCount} translations. Trying another article...`;
+                    }
+                }
                 
-                const pageId = randomData.query.random[0].id;
-                const title = randomData.query.random[0].title;
-                
-                articleTitle.textContent = title;
-                statusText.textContent = `Found article: "${title}" (ID: ${pageId}). Fetching content...`;
-                
-                // Step 2: Get the article content using the page ID
-                const contentResponse = await fetch(
-                    `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`
-                );
-                
-                const contentData = await contentResponse.json();
-                apiResponse.textContent = JSON.stringify(contentData, null, 2);
-                
-                // Display the article extract
-                const extract = contentData.query.pages[pageId].extract;
-                articleContent.textContent = extract;
-                
-                statusText.textContent = `Article loaded successfully!`;
+                if (!foundSuitableArticle) {
+                    statusText.textContent = `Couldn't find an article with at least ${minLanguages} languages after ${maxAttempts} attempts. Try again or reduce the minimum.`;
+                    articleTitle.textContent = "No suitable article found";
+                    articleContent.textContent = "Please try again or reduce the minimum number of languages.";
+                    languageCount.textContent = "0";
+                }
                 
             } catch (error) {
                 console.error('Error fetching Wikipedia article:', error);
@@ -115,7 +166,7 @@
         }
         
         // Add click event listener to the load button
-        loadBtn.addEventListener('click', getRandomArticle);
+        loadBtn.addEventListener('click', getMultiLanguageArticle);
     </script>
 </body>
 </html>
