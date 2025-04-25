@@ -75,8 +75,25 @@
     <div class="controls">
         <label for="min-languages">Minimum languages: </label>
         <input type="number" id="min-languages" value="20" min="1" max="300">
-        <button id="load-btn" class="btn">Load Random Article</button>
-        <button id="load-popular-btn" class="btn">Load Popular Article</button>
+        <button id="load-btn" class="btn">Random Article</button>
+        <button id="load-popular-btn" class="btn">Most Translated</button>
+        <button id="load-category-btn" class="btn">By Category</button>
+    </div>
+    
+    <div class="controls">
+        <select id="category-select" style="display:none; margin-right: 10px; padding: 5px; width: 200px;">
+            <option value="Countries">Countries</option>
+            <option value="Cities">Cities</option>
+            <option value="Animals">Animals</option>
+            <option value="Plants">Plants</option>
+            <option value="Historical_figures">Historical Figures</option>
+            <option value="Scientists">Scientists</option>
+            <option value="Artists">Artists</option>
+            <option value="Films">Films</option>
+            <option value="Books">Books</option>
+            <option value="Music_albums">Music Albums</option>
+        </select>
+        <button id="confirm-category-btn" class="btn" style="display:none;">Confirm</button>
     </div>
     
     <p id="status" class="status">Click a button to fetch an article...</p>
@@ -227,19 +244,52 @@
         async function getPopularMultiLanguageArticle() {
             try {
                 const minLanguages = parseInt(minLanguagesInput.value) || 20;
-                statusText.textContent = `Fetching articles with many translations...`;
+                statusText.textContent = `Fetching large pool of articles with many translations...`;
                 
-                // Query for pages with most language links
-                const response = await fetch(
-                    `https://en.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Mostinterwikis&qplimit=20&format=json&origin=*`
-                );
+                // Set the maximum number of articles to gather and the page size
+                const totalArticlesToFetch = 500; // We'll try to fetch up to 500 articles total
+                const pageSize = 100; // Each API request will fetch 100 articles (API maximum)
+                let allArticles = [];
+                let continueToken = null;
                 
-                const data = await response.json();
-                const articles = data.query.querypage.results;
+                // Fetch articles in batches using pagination
+                while (allArticles.length < totalArticlesToFetch) {
+                    // Build the API URL with pagination parameters if available
+                    let apiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Mostinterwikis&qplimit=${pageSize}&format=json&origin=*`;
+                    
+                    if (continueToken) {
+                        apiUrl += `&qpoffset=${continueToken}`;
+                    }
+                    
+                    statusText.textContent = `Fetching articles batch ${Math.floor(allArticles.length/pageSize) + 1}...`;
+                    
+                    // Make the API request
+                    const response = await fetch(apiUrl);
+                    const data = await response.json();
+                    
+                    // Add the new batch of articles to our collection
+                    const newArticles = data.query.querypage.results || [];
+                    allArticles = allArticles.concat(newArticles);
+                    
+                    // Check if there are more results to fetch
+                    if (data.continue && data.continue.qpoffset) {
+                        continueToken = data.continue.qpoffset;
+                    } else {
+                        // No more results available from the API
+                        break;
+                    }
+                    
+                    // To avoid overloading the API, limit the number of requests
+                    if (allArticles.length >= totalArticlesToFetch || Math.floor(allArticles.length/pageSize) >= 5) {
+                        break;
+                    }
+                }
                 
-                // Find an article with enough translations (most should have more than enough)
-                const randomIndex = Math.floor(Math.random() * Math.min(10, articles.length));
-                const selectedArticle = articles[randomIndex];
+                statusText.textContent = `Collected ${allArticles.length} articles. Selecting one at random...`;
+                
+                // Randomly select an article from our large pool
+                const randomIndex = Math.floor(Math.random() * allArticles.length);
+                const selectedArticle = allArticles[randomIndex];
                 const title = selectedArticle.title;
                 
                 await getAndDisplayArticle(title);
