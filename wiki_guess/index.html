@@ -36,25 +36,6 @@
     </div>
 
     <script>
-        // Sample articles data (in a real app, this would come from Wikipedia API)
-        const sampleArticles = [
-            {
-                title: "Solar System",
-                content: "The Solar System is the gravitationally bound system of the Sun and the objects that orbit it. It formed 4.6 billion years ago from the gravitational collapse of a giant interstellar molecular cloud. The vast majority of the system's mass is in the Sun, with most of the remaining mass contained in Jupiter. The four inner system planets are terrestrial planets, being primarily composed of rock and metal. The four outer planets are giant planets, being substantially more massive than the terrestrials.",
-                hint: "This article is about a collection of celestial bodies."
-            },
-            {
-                title: "Internet",
-                content: "The Internet is the global system of interconnected computer networks that uses the Internet protocol suite to communicate between networks and devices. It is a network of networks that consists of private, public, academic, business, and government networks of local to global scope, linked by a broad array of electronic, wireless, and optical networking technologies. The Internet carries a vast range of information resources and services.",
-                hint: "This article is about a communication technology used worldwide."
-            },
-            {
-                title: "Chess",
-                content: "Chess is a board game played between two players. It is sometimes called Western chess or international chess to distinguish it from related games such as xiangqi. The current form of the game emerged in Southern Europe during the second half of the 15th century after evolving from chaturanga, a similar but much older game of Indian origin. Today, chess is one of the world's most popular games, played by millions of people worldwide.",
-                hint: "This article is about a strategic board game with kings and queens."
-            }
-        ];
-        
         // Game state variables
         let currentArticle = null;
         let wordStatus = {};
@@ -63,7 +44,7 @@
         let guessCount = 0;
         let totalGuessCount = 0;
         let completedArticles = 0;
-        
+
         // DOM elements
         const articleDisplay = document.getElementById('article-display');
         const guessInput = document.getElementById('guess-input');
@@ -75,28 +56,159 @@
         const hintText = document.getElementById('hint-text');
         const completedCounter = document.getElementById('completed-counter');
         const totalGuessesDisplay = document.getElementById('total-guesses');
-        
+        const statusText = document.getElementById('status-text');
+        const minLanguagesInput = document.getElementById('min-languages');
+
         // Initialize the game
         function initGame() {
             guessCount = 0;
             foundWords = 0;
             wordStatus = {};
             
-            // Select a random article
-            currentArticle = sampleArticles[Math.floor(Math.random() * sampleArticles.length)];
-            
-            // Process article content
-            const words = processArticleContent(currentArticle.content);
-            totalWords = Object.keys(wordStatus).length;
-            
-            // Update display
-            updateArticleDisplay();
-            foundCounter.textContent = foundWords;
-            totalWordsDisplay.textContent = totalWords;
-            guessCounter.textContent = guessCount;
-            hintText.textContent = currentArticle.hint;
+            // Get a random article from Wikipedia
+            getMultiLanguageArticle();
         }
-        
+
+        // Function to get an article by title and display it
+        async function getAndDisplayArticle(title) {
+            try {
+                if (statusText) {
+                    statusText.textContent = `Fetching article...`;
+                }
+                
+                // Step 1: Get the page ID from the title
+                const titleResponse = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&format=json&origin=*`
+                );
+                
+                const titleData = await titleResponse.json();
+                const pageId = Object.keys(titleData.query.pages)[0];
+                
+                if (pageId === '-1') {
+                    throw new Error(`Article "${title}" not found`);
+                }
+                
+                // Step 2: Get language links
+                const langlinksResponse = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&lllimit=500&pageids=${pageId}&format=json&origin=*`
+                );
+                
+                const langlinksData = await langlinksResponse.json();
+                const langlinks = langlinksData.query.pages[pageId].langlinks || [];
+                const langCount = langlinks.length;
+                
+                // Step 3: Get the article content
+                const contentResponse = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`
+                );
+                
+                const contentData = await contentResponse.json();
+                
+                // Get the article extract and set up the current article
+                const extract = contentData.query.pages[pageId].extract;
+                
+                currentArticle = {
+                    title: title,
+                    content: extract,
+                    hint: `This article is available in ${langCount} languages`
+                };
+                
+                // Process article content
+                processArticleContent(currentArticle.content);
+                totalWords = Object.keys(wordStatus).filter(word => !wordStatus[word]).length;
+                
+                // Update display
+                updateArticleDisplay();
+                foundCounter.textContent = foundWords;
+                totalWordsDisplay.textContent = totalWords;
+                guessCounter.textContent = guessCount;
+                hintText.textContent = currentArticle.hint;
+                
+                if (statusText) {
+                    statusText.textContent = `Article loaded successfully with ${langCount} translations!`;
+                }
+                
+            } catch (error) {
+                console.error('Error fetching Wikipedia article:', error);
+                if (statusText) {
+                    statusText.textContent = `Error: ${error.message}`;
+                }
+                // Try a different article if there's an error
+                getMultiLanguageArticle();
+            }
+        }
+
+        // Function to fetch a random article with at least the specified number of language translations
+        async function getMultiLanguageArticle() {
+            try {
+                const minLanguages = minLanguagesInput ? parseInt(minLanguagesInput.value) || 20 : 20;
+                
+                if (statusText) {
+                    statusText.textContent = `Searching for an article available in at least ${minLanguages} languages...`;
+                }
+                
+                let foundSuitableArticle = false;
+                let attempts = 0;
+                const maxAttempts = 20; // Limit the number of attempts
+                
+                while (!foundSuitableArticle && attempts < maxAttempts) {
+                    attempts++;
+                    
+                    if (statusText) {
+                        statusText.textContent = `Attempt ${attempts}/${maxAttempts}: Fetching random article...`;
+                    }
+                    
+                    // Get a random article ID
+                    const randomResponse = await fetch(
+                        'https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*'
+                    );
+                    
+                    const randomData = await randomResponse.json();
+                    const pageId = randomData.query.random[0].id;
+                    const title = randomData.query.random[0].title;
+                    
+                    if (statusText) {
+                        statusText.textContent = `Checking language count for "${title}"...`;
+                    }
+                    
+                    // Check how many language links this article has
+                    const langlinksResponse = await fetch(
+                        `https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&lllimit=500&pageids=${pageId}&format=json&origin=*`
+                    );
+                    
+                    const langlinksData = await langlinksResponse.json();
+                    const langlinks = langlinksData.query.pages[pageId].langlinks || [];
+                    const langCount = langlinks.length;
+                    
+                    if (langCount >= minLanguages) {
+                        foundSuitableArticle = true;
+                        await getAndDisplayArticle(title);
+                    } else {
+                        if (statusText) {
+                            statusText.textContent = `"${title}" only has ${langCount} translations. Trying another article...`;
+                        }
+                    }
+                }
+                
+                if (!foundSuitableArticle) {
+                    if (statusText) {
+                        statusText.textContent = `Couldn't find an article with at least ${minLanguages} languages after ${maxAttempts} attempts. Try again or reduce the minimum.`;
+                    }
+                    // Fall back to a lower minimum
+                    if (minLanguagesInput) {
+                        minLanguagesInput.value = Math.max(5, minLanguages - 5);
+                    }
+                    getMultiLanguageArticle();
+                }
+                
+            } catch (error) {
+                console.error('Error fetching Wikipedia article:', error);
+                if (statusText) {
+                    statusText.textContent = `Error: ${error.message}`;
+                }
+            }
+        }
+
         // Process article content into words and initialize word status
         function processArticleContent(content) {
             // Split content into words and remove punctuation
@@ -109,7 +221,7 @@
             words.forEach(word => {
                 const lowerWord = word.toLowerCase();
                 // Skip common short words
-                if (lowerWord.length < 3 || ['the', 'and', 'for', 'are', 'was', 'its'].includes(lowerWord)) {
+                if (lowerWord.length < 3 || ['the', 'and', 'for', 'are', 'was', 'its', 'who', 'has', 'had', 'his', 'her', 'this', 'that', 'they', 'with', 'from'].includes(lowerWord)) {
                     wordStatus[lowerWord] = true; // Auto-reveal common words
                 } else {
                     uniqueWords[lowerWord] = word;
@@ -121,9 +233,14 @@
             
             return words;
         }
-        
-        // Update the article display based on current word status
+
+        // Update the article display base
         function updateArticleDisplay() {
+            if (!currentArticle || !currentArticle.content) {
+                articleDisplay.innerHTML = "Loading article...";
+                return;
+            }
+            
             // Create a display version with hidden/revealed words
             const words = currentArticle.content.split(/(\s+)/).map(part => {
                 // Keep spaces as they are
@@ -147,9 +264,11 @@
             
             articleDisplay.innerHTML = words.join('');
         }
-        
+
         // Handle guess submission
         function submitGuess() {
+            if (!currentArticle) return;
+            
             const guess = guessInput.value.trim().toLowerCase();
             
             if (guess.length < 3) {
@@ -161,7 +280,9 @@
             guessCount++;
             totalGuessCount++;
             guessCounter.textContent = guessCount;
-            totalGuessesDisplay.textContent = totalGuessCount;
+            if (totalGuessesDisplay) {
+                totalGuessesDisplay.textContent = totalGuessCount;
+            }
             
             let found = false;
             
@@ -175,7 +296,7 @@
                 // Check if all words are found
                 if (foundWords === totalWords) {
                     setTimeout(() => {
-                        alert(`Congratulations! You've found all words in "${currentArticle.title}"!`);
+                        alert(`Congratulations! You've found all words! The article was about "${currentArticle.title}"`);
                         completedArticles++;
                         completedCounter.textContent = completedArticles;
                         initGame();
@@ -186,22 +307,53 @@
             updateArticleDisplay();
             return found;
         }
-        
-        // Event listeners
-        guessBtn.addEventListener('click', submitGuess);
-        
-        guessInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                submitGuess();
+
+        // Add a function to guess the title of the article
+        function guessTitle() {
+            if (!currentArticle) return;
+            
+            const titleGuess = prompt("What do you think the article is about?").trim().toLowerCase();
+            const actualTitle = currentArticle.title.toLowerCase();
+            
+            if (titleGuess === actualTitle) {
+                alert("Correct! You guessed the title!");
+                completedArticles++;
+                completedCounter.textContent = completedArticles;
+                initGame();
+            } else {
+                alert("That's not correct. Keep trying!");
             }
-        });
-        
-        newGameBtn.addEventListener('click', () => {
+        }
+
+        // Event listeners
+        if (guessBtn) {
+            guessBtn.addEventListener('click', submitGuess);
+        }
+
+        if (guessInput) {
+            guessInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    submitGuess();
+                }
+            });
+        }
+
+        if (newGameBtn) {
+            newGameBtn.addEventListener('click', () => {
+                initGame();
+            });
+        }
+
+        // Add event listener for title guess button if it exists
+        const guessTitleBtn = document.getElementById('guess-title-btn');
+        if (guessTitleBtn) {
+            guessTitleBtn.addEventListener('click', guessTitle);
+        }
+
+        // Start the game
+        document.addEventListener('DOMContentLoaded', () => {
             initGame();
         });
-        
-        // Start the game
-        initGame();
     </script>
 </body>
 </html>
