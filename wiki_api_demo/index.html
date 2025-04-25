@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia API Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #article-container {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        #load-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #load-btn:hover {
+            background-color: #2980b9;
+        }
+        .status {
+            color: #777;
+            font-style: italic;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            margin-top: 20px;
+            color: #444;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wikipedia API Demo</h1>
+    <p>This simple page demonstrates how to fetch and display a random Wikipedia article.</p>
+    
+    <button id="load-btn">Load Random Article</button>
+    <p id="status" class="status">Click the button to fetch an article...</p>
+    
+    <div id="article-container">
+        <h2 id="article-title">Article will appear here</h2>
+        <div id="article-content">Loading...</div>
+    </div>
+    
+    <h2>API Response (Raw JSON)</h2>
+    <pre id="api-response">Click the button to see the raw API response...</pre>
+    
+    <script>
+        // DOM elements
+        const loadBtn = document.getElementById('load-btn');
+        const statusText = document.getElementById('status');
+        const articleTitle = document.getElementById('article-title');
+        const articleContent = document.getElementById('article-content');
+        const apiResponse = document.getElementById('api-response');
+        
+        // Function to fetch a random article
+        async function getRandomArticle() {
+            try {
+                statusText.textContent = "Fetching random article...";
+                
+                // Step 1: Get a random article ID
+                const randomResponse = await fetch(
+                    'https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*'
+                );
+                
+                const randomData = await randomResponse.json();
+                apiResponse.textContent = JSON.stringify(randomData, null, 2);
+                
+                const pageId = randomData.query.random[0].id;
+                const title = randomData.query.random[0].title;
+                
+                articleTitle.textContent = title;
+                statusText.textContent = `Found article: "${title}" (ID: ${pageId}). Fetching content...`;
+                
+                // Step 2: Get the article content using the page ID
+                const contentResponse = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`
+                );
+                
+                const contentData = await contentResponse.json();
+                apiResponse.textContent = JSON.stringify(contentData, null, 2);
+                
+                // Display the article extract
+                const extract = contentData.query.pages[pageId].extract;
+                articleContent.textContent = extract;
+                
+                statusText.textContent = `Article loaded successfully!`;
+                
+            } catch (error) {
+                console.error('Error fetching Wikipedia article:', error);
+                statusText.textContent = `Error: ${error.message}`;
+                articleContent.textContent = "Failed to load article content.";
+            }
+        }
+        
+        // Add click event listener to the load button
+        loadBtn.addEventListener('click', getRandomArticle);
+    </script>
+</body>
+</html>
