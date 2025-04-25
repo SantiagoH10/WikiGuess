@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiGuess - Guess the Wikipedia Article!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>WikiGuess</h1>
+        <p>Guess the hidden Wikipedia article by entering words!</p>
+    </header>
+    
+    <div class="game-container">
+        <div class="game-status">
+            <div>Words found: <span id="found-counter">0</span>/<span id="total-words">0</span></div>
+            <div>Guesses: <span id="guess-counter">0</span></div>
+        </div>
+        
+        <div class="controls">
+            <input type="text" id="guess-input" placeholder="Enter a word to guess..." autocomplete="off">
+            <button id="guess-btn">Guess</button>
+            <button id="new-game-btn">New Article</button>
+        </div>
+        
+        <div class="article-content" id="article-display"></div>
+        
+        <div class="hint">Hint: <span id="hint-text">This article is about a popular science topic.</span></div>
+        
+        <div class="stats">
+            <h3>Game Stats</h3>
+            <p>Articles completed: <span id="completed-counter">0</span></p>
+            <p>Total guesses: <span id="total-guesses">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Sample articles data (in a real app, this would come from Wikipedia API)
+        const sampleArticles = [
+            {
+                title: "Solar System",
+                content: "The Solar System is the gravitationally bound system of the Sun and the objects that orbit it. It formed 4.6 billion years ago from the gravitational collapse of a giant interstellar molecular cloud. The vast majority of the system's mass is in the Sun, with most of the remaining mass contained in Jupiter. The four inner system planets are terrestrial planets, being primarily composed of rock and metal. The four outer planets are giant planets, being substantially more massive than the terrestrials.",
+                hint: "This article is about a collection of celestial bodies."
+            },
+            {
+                title: "Internet",
+                content: "The Internet is the global system of interconnected computer networks that uses the Internet protocol suite to communicate between networks and devices. It is a network of networks that consists of private, public, academic, business, and government networks of local to global scope, linked by a broad array of electronic, wireless, and optical networking technologies. The Internet carries a vast range of information resources and services.",
+                hint: "This article is about a communication technology used worldwide."
+            },
+            {
+                title: "Chess",
+                content: "Chess is a board game played between two players. It is sometimes called Western chess or international chess to distinguish it from related games such as xiangqi. The current form of the game emerged in Southern Europe during the second half of the 15th century after evolving from chaturanga, a similar but much older game of Indian origin. Today, chess is one of the world's most popular games, played by millions of people worldwide.",
+                hint: "This article is about a strategic board game with kings and queens."
+            }
+        ];
+        
+        // Game state variables
+        let currentArticle = null;
+        let wordStatus = {};
+        let foundWords = 0;
+        let totalWords = 0;
+        let guessCount = 0;
+        let totalGuessCount = 0;
+        let completedArticles = 0;
+        
+        // DOM elements
+        const articleDisplay = document.getElementById('article-display');
+        const guessInput = document.getElementById('guess-input');
+        const guessBtn = document.getElementById('guess-btn');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const foundCounter = document.getElementById('found-counter');
+        const totalWordsDisplay = document.getElementById('total-words');
+        const guessCounter = document.getElementById('guess-counter');
+        const hintText = document.getElementById('hint-text');
+        const completedCounter = document.getElementById('completed-counter');
+        const totalGuessesDisplay = document.getElementById('total-guesses');
+        
+        // Initialize the game
+        function initGame() {
+            guessCount = 0;
+            foundWords = 0;
+            wordStatus = {};
+            
+            // Select a random article
+            currentArticle = sampleArticles[Math.floor(Math.random() * sampleArticles.length)];
+            
+            // Process article content
+            const words = processArticleContent(currentArticle.content);
+            totalWords = Object.keys(wordStatus).length;
+            
+            // Update display
+            updateArticleDisplay();
+            foundCounter.textContent = foundWords;
+            totalWordsDisplay.textContent = totalWords;
+            guessCounter.textContent = guessCount;
+            hintText.textContent = currentArticle.hint;
+        }
+        
+        // Process article content into words and initialize word status
+        function processArticleContent(content) {
+            // Split content into words and remove punctuation
+            const words = content.split(/\s+/).map(word => {
+                return word.replace(/[^\w']/g, '');
+            }).filter(word => word.length > 0);
+            
+            // Create unique word map (case insensitive)
+            const uniqueWords = {};
+            words.forEach(word => {
+                const lowerWord = word.toLowerCase();
+                // Skip common short words
+                if (lowerWord.length < 3 || ['the', 'and', 'for', 'are', 'was', 'its'].includes(lowerWord)) {
+                    wordStatus[lowerWord] = true; // Auto-reveal common words
+                } else {
+                    uniqueWords[lowerWord] = word;
+                    if (!wordStatus.hasOwnProperty(lowerWord)) {
+                        wordStatus[lowerWord] = false;
+                    }
+                }
+            });
+            
+            return words;
+        }
+        
+        // Update the article display based on current word status
+        function updateArticleDisplay() {
+            // Create a display version with hidden/revealed words
+            const words = currentArticle.content.split(/(\s+)/).map(part => {
+                // Keep spaces as they are
+                if (part.trim() === '') {
+                    return part;
+                }
+                
+                // Get the word without punctuation
+                const word = part.replace(/[^\w']/g, '');
+                if (word === '') return part; // Return punctuation as is
+                
+                const lowerWord = word.toLowerCase();
+                const revealed = wordStatus[lowerWord];
+                
+                if (revealed) {
+                    return `<span class="revealed-word">${part}</span>`;
+                } else {
+                    return `<span class="hidden-word">${part}</span>`;
+                }
+            });
+            
+            articleDisplay.innerHTML = words.join('');
+        }
+        
+        // Handle guess submission
+        function submitGuess() {
+            const guess = guessInput.value.trim().toLowerCase();
+            
+            if (guess.length < 3) {
+                alert("Please enter a word with at least 3 characters.");
+                return;
+            }
+            
+            guessInput.value = '';
+            guessCount++;
+            totalGuessCount++;
+            guessCounter.textContent = guessCount;
+            totalGuessesDisplay.textContent = totalGuessCount;
+            
+            let found = false;
+            
+            // Check if the word exists in the article
+            if (wordStatus.hasOwnProperty(guess) && !wordStatus[guess]) {
+                wordStatus[guess] = true;
+                foundWords++;
+                foundCounter.textContent = foundWords;
+                found = true;
+                
+                // Check if all words are found
+                if (foundWords === totalWords) {
+                    setTimeout(() => {
+                        alert(`Congratulations! You've found all words in "${currentArticle.title}"!`);
+                        completedArticles++;
+                        completedCounter.textContent = completedArticles;
+                        initGame();
+                    }, 500);
+                }
+            }
+            
+            updateArticleDisplay();
+            return found;
+        }
+        
+        // Event listeners
+        guessBtn.addEventListener('click', submitGuess);
+        
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitGuess();
+            }
+        });
+        
+        newGameBtn.addEventListener('click', () => {
+            initGame();
+        });
+        
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
