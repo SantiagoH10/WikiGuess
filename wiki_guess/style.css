@@ -39,20 +39,96 @@ input {
     border-radius: 4px;
 }
 
+/* From Uiverse.io by cssbuttons-io */ 
 button {
-    background-color: #3498db;
-    color: white;
+    position: relative;
     border: none;
-    padding: 10px 15px;
-    font-size: 16px;
-    border-radius: 4px;
+    background: transparent;
+    padding: 0;
     cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-button:hover {
-    background-color: #2980b9;
-}
+    outline-offset: 4px;
+    transition: filter 250ms;
+    user-select: none;
+    touch-action: manipulation;
+   }
+   
+   .shadow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    background: hsl(0deg 0% 0% / 0.25);
+    will-change: transform;
+    transform: translateY(2px);
+    transition: transform
+       600ms
+       cubic-bezier(.3, .7, .4, 1);
+   }
+   
+   .edge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    background: linear-gradient(
+       to left,
+       hsl(340deg 100% 16%) 0%,
+       hsl(340deg 100% 32%) 8%,
+       hsl(340deg 100% 32%) 92%,
+       hsl(340deg 100% 16%) 100%
+     );
+   }
+   
+   .front {
+    display: block;
+    position: relative;
+    padding: 12px 27px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    color: white;
+    background: hsl(345deg 100% 47%);
+    will-change: transform;
+    transform: translateY(-4px);
+    transition: transform
+       600ms
+       cubic-bezier(.3, .7, .4, 1);
+   }
+   
+   button:hover {
+    filter: brightness(110%);
+   }
+   
+   button:hover .front {
+    transform: translateY(-6px);
+    transition: transform
+       250ms
+       cubic-bezier(.3, .7, .4, 1.5);
+   }
+   
+   button:active .front {
+    transform: translateY(-2px);
+    transition: transform 34ms;
+   }
+   
+   button:hover .shadow {
+    transform: translateY(4px);
+    transition: transform
+       250ms
+       cubic-bezier(.3, .7, .4, 1.5);
+   }
+   
+   button:active .shadow {
+    transform: translateY(1px);
+    transition: transform 34ms;
+   }
+   
+   button:focus:not(:focus-visible) {
+    outline: none;
+   }
 
 .article-content {
     background-color: #f9f9f9;
@@ -101,4 +177,62 @@ button:hover {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #eee;
+}
+
+#loading-indicator {
+    display: none; /* Hidden by default */
+    text-align: center;
+    margin-top: 20px;
+}
+
+.loading-animation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.loading-animation .dot {
+    width: 10px;
+    height: 10px;
+    background-color: #007bff;
+    border-radius: 50%;
+    animation: loading 1.2s infinite ease-in-out;
+}
+
+.loading-animation .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-animation .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes loading {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
+
+.guess-list-container {
+    margin-top: 10px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+}
+
+.guess-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.guess-list div {
+    padding: 5px 0;
+    border-bottom: 1px solid #ddd;
 }

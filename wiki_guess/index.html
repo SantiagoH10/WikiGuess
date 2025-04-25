@@ -9,19 +9,37 @@
 <body>
     <header>
         <h1>WikiGuess</h1>
-        <p>Guess the hidden Wikipedia article by entering words!</p>
+        <p>Guess the hidden Wikipedia article by entering words! Win by guessing the exact title!</p>
     </header>
     
     <div class="game-container">
+        <div id="loading-indicator">
+            <div class="loading-animation">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+        
         <div class="game-status">
             <div>Words found: <span id="found-counter">0</span>/<span id="total-words">0</span></div>
             <div>Guesses: <span id="guess-counter">0</span></div>
         </div>
         
         <div class="controls">
-            <input type="text" id="guess-input" placeholder="Enter a word to guess..." autocomplete="off">
-            <button id="guess-btn">Guess</button>
-            <button id="new-game-btn">New Article</button>
+            <input type="text" id="guess-input" placeholder="Enter a word or guess the title..." autocomplete="off">
+            <button id="guess-btn">
+                <span class="shadow"></span>
+                <span class="edge"></span>
+                <span class="front text"> Guess
+                </span>
+              </button>
+            <button id="new-game-btn">
+                <span class="shadow"></span>
+                <span class="edge"></span>
+                <span class="front text"> New Article
+                </span>
+            </button>
         </div>
         
         <div class="article-content" id="article-display"></div>
@@ -30,8 +48,11 @@
         
         <div class="stats">
             <h3>Game Stats</h3>
-            <p>Articles completed: <span id="completed-counter">0</span></p>
             <p>Total guesses: <span id="total-guesses">0</span></p>
+            <div class="guess-list-container">
+                <h4>Your Guesses:</h4>
+                <div id="guess-list" class="guess-list"></div>
+            </div>
         </div>
     </div>
 
@@ -44,6 +65,7 @@
         let guessCount = 0;
         let totalGuessCount = 0;
         let completedArticles = 0;
+        let isLoading = false;
 
         // DOM elements
         const articleDisplay = document.getElementById('article-display');
@@ -56,8 +78,9 @@
         const hintText = document.getElementById('hint-text');
         const completedCounter = document.getElementById('completed-counter');
         const totalGuessesDisplay = document.getElementById('total-guesses');
-        const statusText = document.getElementById('status-text');
+        const loadingIndicator = document.getElementById('loading-indicator');
         const minLanguagesInput = document.getElementById('min-languages');
+        const guessList = document.getElementById('guess-list');
 
         // Initialize the game
         function initGame() {
@@ -65,16 +88,27 @@
             foundWords = 0;
             wordStatus = {};
             
+            // Show loading
+            setLoading(true);
+            
             // Get a random article from Wikipedia
             getMultiLanguageArticle();
         }
 
+        // Function to show/hide loading indicator
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingIndicator.style.display = 'block';
+                articleDisplay.style.display = 'none';
+            } else {
+                loadingIndicator.style.display = 'none';
+                articleDisplay.style.display = 'block';
+            }
+        }
         // Function to get an article by title and display it
         async function getAndDisplayArticle(title) {
             try {
-                if (statusText) {
-                    statusText.textContent = `Fetching article...`;
-                }
+                setLoading(true);
                 
                 // Step 1: Get the page ID from the title
                 const titleResponse = await fetch(
@@ -85,7 +119,7 @@
                 const pageId = Object.keys(titleData.query.pages)[0];
                 
                 if (pageId === '-1') {
-                    throw new Error(`Article "${title}" not found`);
+                    throw new Error(`Article not found`);
                 }
                 
                 // Step 2: Get language links
@@ -98,6 +132,7 @@
                 const langCount = langlinks.length;
                 
                 // Step 3: Get the article content
+                loadingIndicator.textContent = `Loading content...`;
                 const contentResponse = await fetch(
                     `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`
                 );
@@ -124,39 +159,31 @@
                 guessCounter.textContent = guessCount;
                 hintText.textContent = currentArticle.hint;
                 
-                if (statusText) {
-                    statusText.textContent = `Article loaded successfully with ${langCount} translations!`;
-                }
+                setLoading(false);
                 
             } catch (error) {
                 console.error('Error fetching Wikipedia article:', error);
-                if (statusText) {
-                    statusText.textContent = `Error: ${error.message}`;
-                }
-                // Try a different article if there's an error
-                getMultiLanguageArticle();
+                setLoading(false); // Hide the loading animation in case of an error
+                alert(`Error: ${error.message}. Trying another article...`);
+                getMultiLanguageArticle(); // Try a different article
             }
         }
 
         // Function to fetch a random article with at least the specified number of language translations
         async function getMultiLanguageArticle() {
             try {
-                const minLanguages = minLanguagesInput ? parseInt(minLanguagesInput.value) || 20 : 20;
+                const minLanguages = minLanguagesInput ? parseInt(minLanguagesInput.value) || 30 : 30;
                 
-                if (statusText) {
-                    statusText.textContent = `Searching for an article available in at least ${minLanguages} languages...`;
-                }
+                setLoading(true);
                 
                 let foundSuitableArticle = false;
                 let attempts = 0;
-                const maxAttempts = 20; // Limit the number of attempts
+                const maxAttempts = 100; // Limit the number of attempts
                 
                 while (!foundSuitableArticle && attempts < maxAttempts) {
                     attempts++;
                     
-                    if (statusText) {
-                        statusText.textContent = `Attempt ${attempts}/${maxAttempts}: Fetching random article...`;
-                    }
+                    loadingIndicator.textContent = `Attempt ${attempts}/${maxAttempts}: Fetching random article...`;
                     
                     // Get a random article ID
                     const randomResponse = await fetch(
@@ -166,10 +193,6 @@
                     const randomData = await randomResponse.json();
                     const pageId = randomData.query.random[0].id;
                     const title = randomData.query.random[0].title;
-                    
-                    if (statusText) {
-                        statusText.textContent = `Checking language count for "${title}"...`;
-                    }
                     
                     // Check how many language links this article has
                     const langlinksResponse = await fetch(
@@ -183,17 +206,11 @@
                     if (langCount >= minLanguages) {
                         foundSuitableArticle = true;
                         await getAndDisplayArticle(title);
-                    } else {
-                        if (statusText) {
-                            statusText.textContent = `"${title}" only has ${langCount} translations. Trying another article...`;
-                        }
                     }
                 }
                 
                 if (!foundSuitableArticle) {
-                    if (statusText) {
-                        statusText.textContent = `Couldn't find an article with at least ${minLanguages} languages after ${maxAttempts} attempts. Try again or reduce the minimum.`;
-                    }
+                    alert(`Couldn't find an article with at least ${minLanguages} languages after ${maxAttempts} attempts. Trying with a lower minimum...`);
                     // Fall back to a lower minimum
                     if (minLanguagesInput) {
                         minLanguagesInput.value = Math.max(5, minLanguages - 5);
@@ -203,9 +220,10 @@
                 
             } catch (error) {
                 console.error('Error fetching Wikipedia article:', error);
-                if (statusText) {
-                    statusText.textContent = `Error: ${error.message}`;
-                }
+                alert(`Error: ${error.message}. Trying again...`);
+                setTimeout(getMultiLanguageArticle, 2000); // Try again after a short delay
+            } finally {
+                setLoading(false); // Hide the loading animation
             }
         }
 
@@ -265,6 +283,26 @@
             articleDisplay.innerHTML = words.join('');
         }
 
+        // Check if the guess matches the article title
+        function checkTitleGuess(guess) {
+            if (!currentArticle) return false;
+            
+            const normalizedGuess = guess.toLowerCase().trim();
+            const normalizedTitle = currentArticle.title.toLowerCase().trim();
+            
+            // Check for exact match or close match
+            if (normalizedGuess === normalizedTitle) {
+                return true;
+            }
+            
+            // Check if guess is very close to title (e.g. missing "The" at beginning)
+            if (normalizedTitle.startsWith('the ') && normalizedGuess === normalizedTitle.substring(4)) {
+                return true;
+            }
+            
+            return false;
+        }
+
         // Handle guess submission
         function submitGuess() {
             if (!currentArticle) return;
@@ -282,6 +320,30 @@
             guessCounter.textContent = guessCount;
             if (totalGuessesDisplay) {
                 totalGuessesDisplay.textContent = totalGuessCount;
+            }
+
+            // Add the guess to the guess list
+            const guessItem = document.createElement('div');
+            guessItem.textContent = guess;
+            guessList.appendChild(guessItem);
+            
+            // Check if the guess matches the article title
+            if (checkTitleGuess(guess)) {
+                // Reveal all words
+                Object.keys(wordStatus).forEach(word => {
+                    wordStatus[word] = true;
+                });
+                foundWords = totalWords;
+                foundCounter.textContent = foundWords;
+                updateArticleDisplay();
+                
+                setTimeout(() => {
+                    alert(`Congratulations! You've guessed the article title: "${currentArticle.title}"!`);
+                    completedArticles++;
+                    completedCounter.textContent = completedArticles;
+                    initGame();
+                }, 500);
+                return true;
             }
             
             let found = false;
@@ -308,23 +370,6 @@
             return found;
         }
 
-        // Add a function to guess the title of the article
-        function guessTitle() {
-            if (!currentArticle) return;
-            
-            const titleGuess = prompt("What do you think the article is about?").trim().toLowerCase();
-            const actualTitle = currentArticle.title.toLowerCase();
-            
-            if (titleGuess === actualTitle) {
-                alert("Correct! You guessed the title!");
-                completedArticles++;
-                completedCounter.textContent = completedArticles;
-                initGame();
-            } else {
-                alert("That's not correct. Keep trying!");
-            }
-        }
-
         // Event listeners
         if (guessBtn) {
             guessBtn.addEventListener('click', submitGuess);
@@ -344,16 +389,17 @@
             });
         }
 
-        // Add event listener for title guess button if it exists
-        const guessTitleBtn = document.getElementById('guess-title-btn');
-        if (guessTitleBtn) {
-            guessTitleBtn.addEventListener('click', guessTitle);
-        }
-
-        // Start the game
+        // Start the game when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             initGame();
         });
+        
+        // Start the game immediately (in case DOMContentLoaded already fired)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+            initGame();
+        }
     </script>
 </body>
 </html>
