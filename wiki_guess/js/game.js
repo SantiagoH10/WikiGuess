@@ -30,6 +30,7 @@ const elements = {
     guessList: document.getElementById('guess-list'),
     loadingOverlay: document.getElementById('loading-overlay'),
     launchGameBtn: document.getElementById('launch-game-btn'),
+    revealBtn: document.getElementById('reveal-btn'),
     timer: document.getElementById('timer')
 };
 
@@ -363,6 +364,21 @@ const gameMechanics = {
             uiController.updateCompletedCounter();
             initGame();
         }, 500);
+    },
+
+    handleReveal() {
+        timer.stop();
+        // Reveal all words
+        Object.keys(gameState.wordIndex).forEach(word => {
+            gameState.wordStatus[word] = true;
+        });
+        gameState.foundWords = gameState.totalWords;
+        
+        // Update UI
+        uiController.updateDisplay();
+        
+        // Show article title
+        alert(`The article was about: "${gameState.currentArticle.title}"`);
     }
 };
 
@@ -585,6 +601,12 @@ function initEventListeners() {
     elements.launchGameBtn?.addEventListener('click', () => {
         setLoading(false);
         initGame();
+    });
+
+    elements.revealBtn?.addEventListener('click', () => {
+        if (confirm('Are you sure you want to reveal the entire article?')) {
+            gameMechanics.handleReveal();
+        }
     });
 }
 
