@@ -2,6 +2,7 @@
 const gameState = {
     currentArticle: null,
     wordStatus: {},
+    wordIndex: {},
     foundWords: 0,
     totalWords: 0,
     guessCount: 0,
@@ -59,23 +60,40 @@ const articleProcessor = {
     },
 
     processContent(content) {
+        // Split on spaces first
         const words = content.split(/\s+/)
+            .flatMap(word => {
+                // Then handle special characters
+                const parts = word.split(/(-|\/|'|"|,|\(|\))/);
+                return parts.filter(part => part && part.length > 0);
+            })
             .map(word => word.replace(/[^\w']/g, ''))
             .filter(word => word.length > 0);
-
+    
         const uniqueWords = {};
-        words.forEach(word => {
+        gameState.wordIndex = {};
+    
+        words.forEach((word, index) => {
             const lowerWord = word.toLowerCase();
             if (this.isCommonWord(lowerWord)) {
                 gameState.wordStatus[lowerWord] = true;
             } else {
+                if (!gameState.wordIndex[lowerWord]) {
+                    gameState.wordIndex[lowerWord] = {
+                        originalForms: new Set([word]),
+                        positions: new Set([index])
+                    };
+                } else {
+                    gameState.wordIndex[lowerWord].originalForms.add(word);
+                    gameState.wordIndex[lowerWord].positions.add(index);
+                }
                 uniqueWords[lowerWord] = word;
                 if (!gameState.wordStatus.hasOwnProperty(lowerWord)) {
                     gameState.wordStatus[lowerWord] = false;
                 }
             }
         });
-
+    
         return Object.keys(uniqueWords);
     },
 
@@ -104,7 +122,7 @@ const wikiAPI = {
     async getMultiLanguageArticle() {
         try {
             const minLanguages = elements.minLanguagesInput ? 
-                parseInt(elements.minLanguagesInput.value) || 50 : 50;
+                parseInt(elements.minLanguagesInput.value) || 20 : 20;
             
             setLoading(true);
             
@@ -269,14 +287,15 @@ const gameMechanics = {
 
     handleCorrectTitleGuess() {
         timer.stop();
-        gameState.titleWords.forEach(word => {
-            if (word.length >= 3) gameState.wordStatus[word] = true;
-        });
-        Object.keys(gameState.wordStatus).forEach(word => {
+        // Reveal all words
+        Object.keys(gameState.wordIndex).forEach(word => {
             gameState.wordStatus[word] = true;
         });
         gameState.foundWords = gameState.totalWords;
+        
+        // Update UI immediately
         uiController.updateDisplay();
+        
         setTimeout(() => {
             alert(`Congratulations! You've guessed the article title: "${gameState.currentArticle.title}"!`);
             gameState.completedArticles++;
@@ -285,10 +304,15 @@ const gameMechanics = {
     },
 
     handleWordGuess(guess) {
-        if (gameState.wordStatus.hasOwnProperty(guess) && !gameState.wordStatus[guess]) {
-            gameState.wordStatus[guess] = true;
+        const normalizedGuess = this.normalizeWord(guess);
+        if (gameState.wordIndex.hasOwnProperty(normalizedGuess) && !gameState.wordStatus[normalizedGuess]) {
+            // Mark word as found
+            gameState.wordStatus[normalizedGuess] = true;
             gameState.foundWords++;
+            
+            // Update UI
             uiController.updateFoundCounter();
+            uiController.updateArticleDisplay(); // Add this to refresh display
             
             if (gameState.foundWords === gameState.totalWords) {
                 this.handleAllWordsFound();
@@ -321,9 +345,54 @@ const uiController = {
             elements.articleDisplay.innerHTML = "Loading article...";
             return;
         }
-
-        const parts = gameState.currentArticle.content.split(/(\s+|[.,;()\-])/);
-        const html = parts.map(part => this.formatArticlePart(part)).join('');
+    
+        // First split by whitespace and common punctuation
+        const words = gameState.currentArticle.content.split(/(\s+|[.,;"()]|\-|\/)/);
+        const html = words.map((part, index) => {
+            // Handle pure whitespace and standard punctuation
+            if (part.trim() === '' || /^[.,;"()]$/.test(part)) return part;
+            
+            // Handle hyphens and forward slashes
+            if (part === '-' || part === '/') return part;
+    
+            // Handle words with apostrophes
+            if (part.includes("'")) {
+                return part.split(/(')/)
+                    .map(subPart => {
+                        if (subPart === "'") return subPart;
+                        if (!subPart) return ''; // Handle empty parts
+                        
+                        const cleanWord = subPart.replace(/[^\w']/g, '');
+                        if (cleanWord === '') return subPart;
+                        
+                        const lowerWord = cleanWord.toLowerCase();
+                        const indexedWord = gameState.wordIndex[lowerWord];
+                        if (indexedWord) {
+                            const isRevealed = this.shouldRevealWord(lowerWord);
+                            const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
+                            const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
+                            return `<span class="${wordClass}" ${dataAttr}>${subPart}</span>`;
+                        }
+                        return subPart;
+                    }).join('');
+            }
+    
+            // Handle regular words
+            const cleanWord = part.replace(/[^\w]/g, '');
+            if (cleanWord === '') return part;
+    
+            const lowerWord = cleanWord.toLowerCase();
+            const indexedWord = gameState.wordIndex[lowerWord];
+            if (indexedWord) {
+                const isRevealed = this.shouldRevealWord(lowerWord);
+                const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
+                const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
+                return `<span class="${wordClass}" ${dataAttr}>${part}</span>`;
+            }
+    
+            return part;
+        }).join('');
+        
         elements.articleDisplay.innerHTML = html;
     },
 
@@ -395,6 +464,7 @@ function initGame() {
         guessCount: 0,
         foundWords: 0,
         wordStatus: {},
+        wordIndex: {},
         titleWords: []
     });
     
