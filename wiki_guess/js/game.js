@@ -60,40 +60,61 @@ const articleProcessor = {
     },
 
     processContent(content) {
+        console.group('Word Processing');
+        console.log('Original content:', content);
         // Split on spaces first
         const words = content.split(/\s+/)
             .flatMap(word => {
-                // Then handle special characters
-                const parts = word.split(/(-|\/|'|"|,|\(|\))/);
-                return parts.filter(part => part && part.length > 0);
+            // Then handle special characters
+            const parts = word.split(/(-|\/|'|"|,|\(|\))/);
+            console.log('Split word:', word, 'into parts:', parts);
+            return parts.filter(part => part && part.length > 0);
             })
-            .map(word => word.replace(/[^\w']/g, ''))
+            .map(word => {
+                const cleaned = word.replace(/[^\wÀ-ÿ']/g, '');
+                console.log('Cleaned word:', { original: word, cleaned });
+                return cleaned;
+            })
             .filter(word => word.length > 0);
+
+        console.log('Processed words:', words);
     
         const uniqueWords = {};
         gameState.wordIndex = {};
     
+        console.group('Word Indexing');
         words.forEach((word, index) => {
-            const lowerWord = word.toLowerCase();
+            const lowerWord = removeAccents(word.toLowerCase());
+            console.log('Indexing word:', { 
+                original: word, 
+                lowercase: lowerWord, 
+                hasAccents: word !== removeAccents(word),
+                position: index 
+            });
             if (this.isCommonWord(lowerWord)) {
                 gameState.wordStatus[lowerWord] = true;
+                console.log(`Common word found: ${lowerWord} (auto-revealed)`);
             } else {
                 if (!gameState.wordIndex[lowerWord]) {
                     gameState.wordIndex[lowerWord] = {
                         originalForms: new Set([word]),
                         positions: new Set([index])
                     };
+                    console.log(`New word indexed: ${lowerWord}`, gameState.wordIndex[lowerWord]);
                 } else {
                     gameState.wordIndex[lowerWord].originalForms.add(word);
                     gameState.wordIndex[lowerWord].positions.add(index);
+                    console.log(`Updated existing word: ${lowerWord}`, gameState.wordIndex[lowerWord]);
                 }
                 uniqueWords[lowerWord] = word;
-                if (!gameState.wordStatus.hasOwnProperty(lowerWord)) {
-                    gameState.wordStatus[lowerWord] = false;
-                }
+                gameState.wordStatus[lowerWord] = false;
             }
         });
-    
+        
+        console.log('Final word index:', gameState.wordIndex);
+        console.log('Word status map:', gameState.wordStatus);
+        console.groupEnd();
+        
         return Object.keys(uniqueWords);
     },
 
@@ -102,10 +123,10 @@ const articleProcessor = {
             .map(word => word.replace(/[^\w']/g, ''))
             .filter(word => word.length > 0);
         
-        gameState.titleWords = words.map(word => word.toLowerCase());
+        gameState.titleWords = words.map(word => removeAccents(word.toLowerCase()));
         
         words.forEach(word => {
-            const lowerWord = word.toLowerCase();
+            const lowerWord = removeAccents(word.toLowerCase());
             if (!this.isCommonWord(lowerWord) && !gameState.wordStatus.hasOwnProperty(lowerWord)) {
                 gameState.wordStatus[lowerWord] = false;
             }
@@ -122,7 +143,7 @@ const wikiAPI = {
     async getMultiLanguageArticle() {
         try {
             const minLanguages = elements.minLanguagesInput ? 
-                parseInt(elements.minLanguagesInput.value) || 20 : 20;
+                parseInt(elements.minLanguagesInput.value) || 50 : 50;
             
             setLoading(true);
             
@@ -237,7 +258,7 @@ const wikiAPI = {
 // Game mechanics
 const gameMechanics = {
     normalizeWord(word) {
-        return word.toLowerCase().trim();
+        return removeAccents(word.toLowerCase().trim());
     },
 
     checkTitleGuess(guess) {
@@ -304,21 +325,34 @@ const gameMechanics = {
     },
 
     handleWordGuess(guess) {
+        console.group('Word Guess');
         const normalizedGuess = this.normalizeWord(guess);
+        console.log('Guess processing:', {
+            original: guess,
+            normalized: normalizedGuess,
+            existsInIndex: gameState.wordIndex.hasOwnProperty(normalizedGuess),
+            alreadyFound: gameState.wordStatus[normalizedGuess]
+        });
+        
         if (gameState.wordIndex.hasOwnProperty(normalizedGuess) && !gameState.wordStatus[normalizedGuess]) {
-            // Mark word as found
+            console.log('Found in index:', gameState.wordIndex[normalizedGuess]);
             gameState.wordStatus[normalizedGuess] = true;
             gameState.foundWords++;
             
-            // Update UI
             uiController.updateFoundCounter();
-            uiController.updateArticleDisplay(); // Add this to refresh display
+            uiController.updateArticleDisplay();
             
             if (gameState.foundWords === gameState.totalWords) {
                 this.handleAllWordsFound();
             }
+            
+            console.log('Word successfully guessed');
+            console.groupEnd();
             return true;
         }
+        
+        console.log('Word not found or already guessed');
+        console.groupEnd();
         return false;
     },
 
@@ -341,55 +375,117 @@ const uiController = {
     },
 
     updateArticleDisplay() {
+        console.group('Article Display Update');
         if (!gameState.currentArticle?.content) {
+            console.log('No article content available');
+            console.groupEnd();
             elements.articleDisplay.innerHTML = "Loading article...";
             return;
         }
     
         // First split by whitespace and common punctuation
         const words = gameState.currentArticle.content.split(/(\s+|[.,;"()]|\-|\/)/);
+        console.log('Split content into parts:', words);
+
         const html = words.map((part, index) => {
+            /*  Debugger
+                console.group(`Processing part: "${part}" at index ${index}`);
+            */
+
             // Handle pure whitespace and standard punctuation
             if (part.trim() === '' || /^[.,;"()]$/.test(part)) return part;
+                console.log('Punctuation or whitespace - keeping as is');
+                console.groupEnd();
             
             // Handle hyphens and forward slashes
-            if (part === '-' || part === '/') return part;
+            if (part === '-' || part === '/' || part === '—' || part === '–') return part;
     
             // Handle words with apostrophes
             if (part.includes("'")) {
-                return part.split(/(')/)
+                console.group(`Processing apostrophe in: "${part}"`);
+                const result = part.split(/(')/)
                     .map(subPart => {
-                        if (subPart === "'") return subPart;
-                        if (!subPart) return ''; // Handle empty parts
+                        console.log(`Processing subpart: "${subPart}"`);
+                        if (subPart === "'") {
+                            console.log('Apostrophe character - keeping as is');
+                            return subPart;
+                        }
+                        if (!subPart) {
+                            console.log('Empty subpart - skipping');
+                            return '';
+                        }
                         
-                        const cleanWord = subPart.replace(/[^\w']/g, '');
-                        if (cleanWord === '') return subPart;
+                        const cleanWord = subPart.replace(/[^\wÀ-ÿ']/g, '');  // Correct: preserves accents
+                        console.log('Cleaned subpart:', {
+                            original: subPart,
+                            cleaned: cleanWord
+                        });
+                        if (cleanWord === '') {
+                            console.log('Empty clean word - keeping original');
+                            return subPart;
+                        }
                         
-                        const lowerWord = cleanWord.toLowerCase();
+                        const lowerWord = removeAccents(cleanWord.toLowerCase());
                         const indexedWord = gameState.wordIndex[lowerWord];
+                        console.log('Word processing:', {
+                            cleaned: cleanWord,
+                            normalized: lowerWord,
+                            isIndexed: !!indexedWord,
+                            shouldReveal: indexedWord ? this.shouldRevealWord(lowerWord) : false
+                        });
+            
                         if (indexedWord) {
                             const isRevealed = this.shouldRevealWord(lowerWord);
                             const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
                             const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
-                            return `<span class="${wordClass}" ${dataAttr}>${subPart}</span>`;
+                            const result = `<span class="${wordClass}" ${dataAttr} aria-hidden="true">${subPart}</span>`;
+                            console.log('Generated HTML:', result);
+                            return result;
                         }
+                        console.log('Word not indexed - keeping original');
                         return subPart;
                     }).join('');
+                console.groupEnd();
+                return result;
             }
     
             // Handle regular words
-            const cleanWord = part.replace(/[^\w]/g, '');
-            if (cleanWord === '') return part;
-    
-            const lowerWord = cleanWord.toLowerCase();
+            console.group(`Processing regular word: "${part}"`);
+            const cleanWord = part.replace(/[^\wÀ-ÿ']/g, '');  // Correct: preserves accents
+            console.log('Cleaned word:', {
+                original: part,
+                cleaned: cleanWord
+            });
+
+            if (cleanWord === '') {
+                console.log('Empty clean word - keeping original');
+                console.groupEnd();
+                return part;
+            }
+
+            const lowerWord = removeAccents(cleanWord.toLowerCase());
             const indexedWord = gameState.wordIndex[lowerWord];
+            console.log('Word processing:', {
+                original: part,
+                cleaned: cleanWord,
+                normalized: lowerWord,
+                isIndexed: !!indexedWord,
+                indexedData: indexedWord,
+                shouldReveal: indexedWord ? this.shouldRevealWord(lowerWord) : false
+            });
+
             if (indexedWord) {
                 const isRevealed = this.shouldRevealWord(lowerWord);
                 const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
                 const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
-                return `<span class="${wordClass}" ${dataAttr}>${part}</span>`;
+                const result = `<span class="${wordClass}" ${dataAttr} aria-hidden="true">${part}</span>`;
+                console.log('Generated HTML:', result);
+                console.groupEnd();
+                return result;
             }
-    
+
+            console.log('Word not indexed - keeping original');
+            console.groupEnd();
             return part;
         }).join('');
         
@@ -471,6 +567,10 @@ function initGame() {
     setLoading(false);
     wikiAPI.getMultiLanguageArticle();
 }
+
+function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}  
 
 // Event listeners
 function initEventListeners() {

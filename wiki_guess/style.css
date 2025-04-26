@@ -73,6 +73,12 @@ input {
     margin: 2px;
     border-radius: 3px;
     display: inline-block;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    text-shadow: none;
+    -webkit-touch-callout: none;
 }
 
 .revealed-word {
