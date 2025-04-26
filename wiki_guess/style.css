@@ -18,6 +18,30 @@ h1 {
     margin-bottom: 5px;
 }
 
+/* Wrapper for the game container */
+.game-wrapper {
+    position: relative; /* Ensure the overlay is positioned relative to this container */
+}
+
+/* Loading overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7); /* Translucent white */
+    z-index: 10; /* Ensure it appears above the game-container */
+    border-radius: 8px; /* Match the border-radius of the game-container */
+    display: none; /* Hidden by default */
+    backdrop-filter: blur(5px); /* Add a subtle blur effect */
+}
+
+/* Show the overlay when loading */
+#loading-overlay.active {
+    display: block;
+}
+
 .game-container {
     background-color: white;
     border-radius: 8px;
@@ -39,6 +63,17 @@ input {
     border-radius: 4px;
 }
 
+.game-status {
+    font-size: 1.5rem; /* Increase the font size */
+    font-weight: bold; /* Make the text bold */
+    text-align: center; /* Center-align the text */
+    margin: 10px 0; /* Add some spacing */
+}
+
+.game-status div {
+    margin: 5px 0; /* Add spacing between the lines */
+}
+
 /* From Uiverse.io by cssbuttons-io */ 
 button {
     position: relative;
@@ -50,85 +85,92 @@ button {
     transition: filter 250ms;
     user-select: none;
     touch-action: manipulation;
-   }
+}
    
-   .shadow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    background: hsl(0deg 0% 0% / 0.25);
-    will-change: transform;
-    transform: translateY(2px);
-    transition: transform
-       600ms
-       cubic-bezier(.3, .7, .4, 1);
-   }
-   
-   .edge {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    background: linear-gradient(
-       to left,
-       hsl(340deg 100% 16%) 0%,
-       hsl(340deg 100% 32%) 8%,
-       hsl(340deg 100% 32%) 92%,
-       hsl(340deg 100% 16%) 100%
-     );
-   }
-   
-   .front {
-    display: block;
-    position: relative;
-    padding: 12px 27px;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    color: white;
-    background: hsl(345deg 100% 47%);
-    will-change: transform;
-    transform: translateY(-4px);
-    transition: transform
-       600ms
-       cubic-bezier(.3, .7, .4, 1);
-   }
-   
-   button:hover {
-    filter: brightness(110%);
-   }
-   
-   button:hover .front {
-    transform: translateY(-6px);
-    transition: transform
-       250ms
-       cubic-bezier(.3, .7, .4, 1.5);
-   }
-   
-   button:active .front {
-    transform: translateY(-2px);
-    transition: transform 34ms;
-   }
-   
-   button:hover .shadow {
-    transform: translateY(4px);
-    transition: transform
-       250ms
-       cubic-bezier(.3, .7, .4, 1.5);
-   }
-   
-   button:active .shadow {
-    transform: translateY(1px);
-    transition: transform 34ms;
-   }
-   
-   button:focus:not(:focus-visible) {
-    outline: none;
-   }
+.shadow {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+border-radius: 12px;
+background: hsl(0deg 0% 0% / 0.25);
+will-change: transform;
+transform: translateY(2px);
+transition: transform
+    600ms
+    cubic-bezier(.3, .7, .4, 1);
+}
+
+.edge {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+border-radius: 12px;
+background: linear-gradient(
+    to left,
+    hsl(340deg 100% 16%) 0%,
+    hsl(340deg 100% 32%) 8%,
+    hsl(340deg 100% 32%) 92%,
+    hsl(340deg 100% 16%) 100%
+    );
+}
+
+.front {
+display: block;
+position: relative;
+padding: 12px 27px;
+border-radius: 12px;
+font-size: 1.1rem;
+color: white;
+background: hsl(345deg 100% 47%);
+will-change: transform;
+transform: translateY(-4px);
+transition: transform
+    600ms
+    cubic-bezier(.3, .7, .4, 1);
+}
+
+button:hover {
+filter: brightness(110%);
+}
+
+button:hover .front {
+transform: translateY(-6px);
+transition: transform
+    250ms
+    cubic-bezier(.3, .7, .4, 1.5);
+}
+
+button:active .front {
+transform: translateY(-2px);
+transition: transform 34ms;
+}
+
+button:hover .shadow {
+transform: translateY(4px);
+transition: transform
+    250ms
+    cubic-bezier(.3, .7, .4, 1.5);
+}
+
+button:active .shadow {
+transform: translateY(1px);
+transition: transform 34ms;
+}
+
+button:focus:not(:focus-visible) {
+outline: none;
+}
+
+#new-game-btn {
+position: absolute; /* Position the button relative to the viewport */
+top: 20px; /* Distance from the top of the screen */
+right: 20px; /* Distance from the right of the screen */
+z-index: 1000; /* Ensure it stays on top of other elements */
+}
 
 .article-content {
     background-color: #f9f9f9;
@@ -179,23 +221,46 @@ button {
     border-top: 1px solid #eee;
 }
 
-#loading-indicator {
-    display: none; /* Hidden by default */
-    text-align: center;
-    margin-top: 20px;
+/* Loading overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7); /* Translucent white */
+    z-index: 20; /* Ensure it appears above the game-container */
+    border-radius: 8px; /* Match the border-radius of the game-container */
+    backdrop-filter: blur(5px); /* Add a subtle blur effect */
 }
 
+/* Show the overlay when loading */
+#loading-overlay.active {
+    display: block;
+}
+
+/* Center the loading indicator */
+#loading-indicator {
+    position: absolute;
+    top: 20%; /* Position it near the top (20% from the top of the container) */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Adjust for horizontal centering */
+    z-index: 30; /* Ensure it appears above the overlay */
+    display: none; /* Hidden by default */
+}
+
+/* Make the loading animation bigger */
 .loading-animation {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
+    gap: 10px; /* Space between dots */
 }
 
 .loading-animation .dot {
-    width: 10px;
-    height: 10px;
-    background-color: #007bff;
+    width: 20px; /* Increase dot size */
+    height: 20px; /* Increase dot size */
+    background-color: #007bff; /* Blue color */
     border-radius: 50%;
     animation: loading 1.2s infinite ease-in-out;
 }
@@ -235,4 +300,21 @@ button {
 .guess-list div {
     padding: 5px 0;
     border-bottom: 1px solid #ddd;
+}
+
+/* Center the launch game button inside the overlay */
+#launch-game-btn {
+    position: absolute;
+    top: 50%; /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%); /* Adjust for the button's size */
+    z-index: 30; /* Ensure it appears above the overlay */
+}
+
+#timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-top: 10px;
+    display: inline-block;
 }
