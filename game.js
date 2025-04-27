@@ -144,7 +144,7 @@ const wikiAPI = {
     async getMultiLanguageArticle() {
         try {
             const minLanguages = elements.minLanguagesInput ? 
-                parseInt(elements.minLanguagesInput.value) || 50 : 50;
+                parseInt(elements.minLanguagesInput.value) || 1 : 1;
             
             setLoading(true);
             
@@ -243,12 +243,12 @@ const wikiAPI = {
     handleError(error) {
         console.error('Error fetching Wikipedia article:', error);
         setLoading(false);
-        alert(`Error: ${error.message}. Trying again...`);
+        console.log(`Error: ${error.message}. Trying again...`);
         setTimeout(() => this.getMultiLanguageArticle(), 2000);
     },
 
     handleNoSuitableArticle(minLanguages) {
-        alert(`Couldn't find an article with at least ${minLanguages} languages. Trying with a lower minimum...`);
+        console.log(`Couldn't find an article with at least ${minLanguages} languages. Trying with a lower minimum...`);
         if (elements.minLanguagesInput) {
             elements.minLanguagesInput.value = Math.max(5, minLanguages - 5);
         }
@@ -604,9 +604,7 @@ function initEventListeners() {
     });
 
     elements.revealBtn?.addEventListener('click', () => {
-        if (confirm('Are you sure you want to reveal the entire article?')) {
             gameMechanics.handleReveal();
-        }
     });
 }
 

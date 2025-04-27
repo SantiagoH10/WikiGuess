@@ -8,14 +8,21 @@
 </head>
 <body>
     <header>
-        <button id="new-game-btn">
-            <span class="shadow"></span>
-            <span class="edge"></span>
-            <span class="front text"> New Article </span>
-        </button>
         <h1>WikiGuess</h1>
         <p>Guess the hidden Wikipedia article by entering words! Win by guessing the exact title!</p>
-        <span id="timer">Time: 00:00</span> <!-- Timer element -->
+        <span id="timer">Time: 00:00</span> <!-- Timer element with updated styling -->
+        <div class="button-container">
+            <button id="new-game-btn">
+                <span class="shadow"></span>
+                <span class="edge"></span>
+                <span class="front text">New Article</span>
+            </button>
+            <button id="reveal-btn">
+                <span class="shadow"></span>
+                <span class="edge"></span>
+                <span class="front text">Reveal Page</span>
+            </button>
+        </div>
     </header>
     
     <div class="game-wrapper">
@@ -23,7 +30,7 @@
             <button id="launch-game-btn">
                 <span class="shadow"></span>
                 <span class="edge"></span>
-                <span class="front text"> Launch Game </span>
+                <span class="front text">Launch Game</span>
             </button>
         </div>
         <div class="game-container">
@@ -45,31 +52,27 @@
                 <button id="guess-btn">
                     <span class="shadow"></span>
                     <span class="edge"></span>
-                    <span class="front text"> Guess
-                    </span>
-                </button>
-                <button id="reveal-btn">
-                    <span class="shadow"></span>
-                    <span class="edge"></span>
-                    <span class="front text"> Reveal Page
-                    </span>
+                    <span class="front text">Guess</span>
                 </button>
             </div>
             
             <div class="article-content" id="article-display"></div>
 
             <div class="hint">
-                <span id="hint-text">
-                </span>
+                <span id="hint-text"></span>
             </div>
-
                     
             <div class="stats">
                 <h3>Game Stats</h3>
                 <p>Total guesses: <span id="total-guesses">0</span></p>
+                <!-- Enhanced guess-list-container with proper styling -->
                 <div class="guess-list-container">
                     <h4>Your Guesses:</h4>
-                    <div id="guess-list" class="guess-list"></div>
+                    <div id="guess-list" class="guess-list">
+                        <!-- Example of a correct guess item (for reference) -->
+                        <!-- <div class="correct">Example correct guess</div> -->
+                        <!-- <div>Regular guess example</div> -->
+                    </div>
                 </div>
             </div>
         </div>
