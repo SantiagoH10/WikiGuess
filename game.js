@@ -60,6 +60,15 @@ const articleProcessor = {
         return text.replace(/\s*\([^)]*\)/g, '');
     },
 
+    /* Stand-by for future use
+    getSingularForm(word) {
+        if (word.endsWith('s')) {
+            return word.slice(0, -1);
+        }
+        return word;
+    },
+    */
+
     processContent(content) {
         console.group('Word Processing');
         console.log('Original content:', content);
@@ -82,34 +91,35 @@ const articleProcessor = {
     
         const uniqueWords = {};
         gameState.wordIndex = {};
+        
     
         console.group('Word Indexing');
         words.forEach((word, index) => {
             const lowerWord = removeAccents(word.toLowerCase());
+            const normalizedWord = gameMechanics.normalizeWord(lowerWord);
+
             console.log('Indexing word:', { 
                 original: word, 
-                lowercase: lowerWord, 
+                lowercase: lowerWord,
+                normalized: normalizedWord,
                 hasAccents: word !== removeAccents(word),
                 position: index 
             });
-            if (this.isCommonWord(lowerWord)) {
-                gameState.wordStatus[lowerWord] = true;
-                console.log(`Common word found: ${lowerWord} (auto-revealed)`);
-            } else {
-                if (!gameState.wordIndex[lowerWord]) {
-                    gameState.wordIndex[lowerWord] = {
-                        originalForms: new Set([word]),
-                        positions: new Set([index])
-                    };
-                    console.log(`New word indexed: ${lowerWord}`, gameState.wordIndex[lowerWord]);
-                } else {
-                    gameState.wordIndex[lowerWord].originalForms.add(word);
-                    gameState.wordIndex[lowerWord].positions.add(index);
-                    console.log(`Updated existing word: ${lowerWord}`, gameState.wordIndex[lowerWord]);
-                }
-                uniqueWords[lowerWord] = word;
-                gameState.wordStatus[lowerWord] = false;
-            }
+            
+        if (!gameState.wordIndex[normalizedWord]) {
+            gameState.wordIndex[normalizedWord] = {
+                originalForms: new Set([word]),
+                positions: new Set([index])
+            };
+            console.log(`New word indexed: ${normalizedWord}`, gameState.wordIndex[normalizedWord]);
+        } else {
+            gameState.wordIndex[normalizedWord].originalForms.add(word);
+            gameState.wordIndex[normalizedWord].positions.add(index);
+            console.log(`Updated existing word: ${normalizedWord}`, gameState.wordIndex[normalizedWord]);
+        }
+        uniqueWords[normalizedWord] = word;
+        gameState.wordStatus[normalizedWord] = false;
+        
         });
         
         console.log('Final word index:', gameState.wordIndex);
@@ -120,23 +130,26 @@ const articleProcessor = {
     },
 
     processTitleWords(title) {
+        console.log('Processing title:', title);
         const words = title.split(/\s+/)
             .map(word => word.replace(/[^\w']/g, ''))
             .filter(word => word.length > 0);
+
+        console.log('Title words after cleaning:', words);
         
-        gameState.titleWords = words.map(word => removeAccents(word.toLowerCase()));
+        gameState.titleWords = words.map(word => gameMechanics.normalizeWord(word));
+
+        console.log('Normalized title words:', gameState.titleWords);
         
         words.forEach(word => {
-            const lowerWord = removeAccents(word.toLowerCase());
-            if (!this.isCommonWord(lowerWord) && !gameState.wordStatus.hasOwnProperty(lowerWord)) {
-                gameState.wordStatus[lowerWord] = false;
+            const normalizedWord = gameMechanics.normalizeWord(word);
+            if (!gameState.wordStatus.hasOwnProperty(normalizedWord)) {
+                gameState.wordStatus[normalizedWord] = false;
+                console.log(`Added word to status: ${normalizedWord}`);
             }
         });
     },
-
-    isCommonWord(word) {
-        return word.length < 3 || ['the', 'and', 'for', 'are', 'was', 'its', 'who', 'has', 'had', 'his', 'her', 'this', 'that', 'they', 'with', 'from'].includes(word);
-    }
+    
 };
 
 // Wikipedia API functions
@@ -259,7 +272,9 @@ const wikiAPI = {
 // Game mechanics
 const gameMechanics = {
     normalizeWord(word) {
-        return removeAccents(word.toLowerCase().trim());
+        const normalized = removeAccents(word.toLowerCase().trim());
+        console.log('Normalized word:', normalized);
+        return normalized;
     },
 
     checkTitleGuess(guess) {
@@ -284,10 +299,6 @@ const gameMechanics = {
         if (!gameState.currentArticle) return;
         
         const guess = this.normalizeWord(elements.guessInput.value);
-        if (guess.length < 3) {
-            elements.guessInput.value = '';
-            return;
-        }
         
         this.updateGuessStats(guess);
         
@@ -431,7 +442,7 @@ const uiController = {
                             return '';
                         }
                         
-                        const cleanWord = subPart.replace(/[^\wÀ-ÿ']/g, '');  // Correct: preserves accents
+                        const cleanWord = subPart.replace(/[^\wÀ-ÿ']/g, '');
                         console.log('Cleaned subpart:', {
                             original: subPart,
                             cleaned: cleanWord
@@ -441,19 +452,19 @@ const uiController = {
                             return subPart;
                         }
                         
-                        const lowerWord = removeAccents(cleanWord.toLowerCase());
-                        const indexedWord = gameState.wordIndex[lowerWord];
+                        const normalizedWord = gameMechanics.normalizeWord(cleanWord);
+                        const indexedWord = gameState.wordIndex[normalizedWord];
                         console.log('Word processing:', {
                             cleaned: cleanWord,
-                            normalized: lowerWord,
+                            normalized: normalizedWord,
                             isIndexed: !!indexedWord,
-                            shouldReveal: indexedWord ? this.shouldRevealWord(lowerWord) : false
+                            shouldReveal: indexedWord ? this.shouldRevealWord(normalizedWord) : false
                         });
             
                         if (indexedWord) {
-                            const isRevealed = this.shouldRevealWord(lowerWord);
+                            const isRevealed = this.shouldRevealWord(normalizedWord);
                             const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
-                            const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
+                            const dataAttr = `data-word-index="${index}" data-clean-word="${normalizedWord}"`;
                             const result = `<span class="${wordClass}" ${dataAttr} aria-hidden="true">${subPart}</span>`;
                             console.log('Generated HTML:', result);
                             return result;
@@ -479,21 +490,21 @@ const uiController = {
                 return part;
             }
 
-            const lowerWord = removeAccents(cleanWord.toLowerCase());
-            const indexedWord = gameState.wordIndex[lowerWord];
+            const normalizedWord = gameMechanics.normalizeWord(cleanWord);
+            const indexedWord = gameState.wordIndex[normalizedWord];
             console.log('Word processing:', {
                 original: part,
                 cleaned: cleanWord,
-                normalized: lowerWord,
+                normalized: normalizedWord,
                 isIndexed: !!indexedWord,
                 indexedData: indexedWord,
-                shouldReveal: indexedWord ? this.shouldRevealWord(lowerWord) : false
+                shouldReveal: indexedWord ? this.shouldRevealWord(normalizedWord) : false
             });
 
             if (indexedWord) {
-                const isRevealed = this.shouldRevealWord(lowerWord);
+                const isRevealed = this.shouldRevealWord(normalizedWord);
                 const wordClass = isRevealed ? 'revealed-word' : 'hidden-word';
-                const dataAttr = `data-word-index="${index}" data-clean-word="${lowerWord}"`;
+                const dataAttr = `data-word-index="${index}" data-clean-word="${normalizedWord}"`;
                 const result = `<span class="${wordClass}" ${dataAttr} aria-hidden="true">${part}</span>`;
                 console.log('Generated HTML:', result);
                 console.groupEnd();
@@ -514,15 +525,14 @@ const uiController = {
         const cleanWord = part.replace(/[^\w']/g, '');
         if (cleanWord === '') return part;
 
-        const lowerWord = cleanWord.toLowerCase();
-        return this.shouldRevealWord(lowerWord) ? 
+        const normalizedWord = cleanWord.toLowerCase();
+        return this.shouldRevealWord(normalizedWord) ? 
             `<span class="revealed-word">${part}</span>` : 
             `<span class="hidden-word">${part}</span>`;
     },
 
     shouldRevealWord(word) {
-        return word.length <= 2 || 
-               gameState.wordStatus[word] === true || 
+        return gameState.wordStatus[word] === true || 
                (gameState.titleWords.includes(word) && 
                 gameState.guessCount > 0 && 
                 gameMechanics.checkTitleGuess(''));
