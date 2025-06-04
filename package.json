@@ -1,0 +1,41 @@
+{
+  "name": "wiki-guess",
+  "version": "1.0.0",
+  "description": "Guess the Wikipedia page",
+  "main": "backend/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server/server.js",
+    "client": "live-server client/ --port=3001",
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "live-server": "^1.2.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.10"
+  },
+  "keywords": [
+    "fullstack",
+    "express",
+    "javascript"
+  ],
+  "author": "BiggieSmalls",
+  "license": "MIT",
+  "codespaces": {
+    "ports": {
+      "3000": {
+        "visibility": "public",
+        "label": "Backend Server"
+      },
+      "3001": {
+        "visibility": "public",
+        "label": "Frontend Client"
+      }
+    }
+  }
+}
