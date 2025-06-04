@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon server/server.js",
-    "client": "live-server client/ --port=3001",
+    "client": "live-server frontend/ --port=3001",
     "start": "node server/server.js"
   },
   "dependencies": {

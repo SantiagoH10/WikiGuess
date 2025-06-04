@@ -196,11 +196,18 @@ const wikiAPI = {
     },
 
     async checkLanguageCount(pageId) {
-        const response = await fetch(
-            `https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&lllimit=500&pageids=${pageId}&format=json&origin=*`
-        );
-        const data = await response.json();
-        return (data.query.pages[pageId].langlinks || []).length;
+    console.log('Checking language count for pageId:', pageId);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&prop=langlinks&lllimit=500&pageids=${pageId}&format=json&origin=*`;
+    console.log('Full URL:', url);
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    console.log('Response data:', data);
+    console.log('Available page IDs:', Object.keys(data.query.pages));
+    console.log('Looking for pageId:', pageId);
+    
+    return (data.query.pages[pageId].langlinks || []).length;
     },
 
     async getAndDisplayArticle(title) {
@@ -225,13 +232,19 @@ const wikiAPI = {
     },
 
     async getPageId(title) {
-        const response = await fetch(
-            `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&format=json&origin=*`
-        );
-        const data = await response.json();
-        const pageId = Object.keys(data.query.pages)[0];
-        if (pageId === '-1') throw new Error('Article not found');
-        return pageId;
+    console.log('Getting page ID for title:', title);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+    console.log('Full URL:', url);
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    console.log('Page ID response:', data);
+    const pageId = Object.keys(data.query.pages)[0];
+    console.log('Extracted pageId:', pageId);
+    
+    if (pageId === '-1') throw new Error('Article not found');
+    return pageId;
     },
 
     async getArticleContent(pageId) {
@@ -621,3 +634,4 @@ function initEventListeners() {
 // Start the game
 initEventListeners();
 initGame();
+console.log("game loaded!");
